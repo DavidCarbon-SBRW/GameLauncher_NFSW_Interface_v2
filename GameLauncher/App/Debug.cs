@@ -64,8 +64,6 @@ namespace GameLauncher.App
             string Firewall = String.Empty;
             string AntiSpyware = String.Empty;
 
-            if (!DetectLinux.NativeLinuxDetected())
-            {
                 try
                 {
                     Antivirus = (String.IsNullOrEmpty(AntivirusInstalled())) ? "---" : AntivirusInstalled();
@@ -78,24 +76,12 @@ namespace GameLauncher.App
                     Firewall = "Unknown";
                     AntiSpyware = "Unknown";
                 }
-            }
 
             string LauncherPosition = "";
             string OS = "";
 
-            if (DetectLinux.WineDetected())
-            {
-                OS = "Wine";
-            }
-            else if (DetectLinux.NativeLinuxDetected())
-            {
-                OS = "Native Linux";
-            }
-            else
-            {
                 OS = (from x in new ManagementObjectSearcher("SELECT Caption FROM Win32_OperatingSystem").Get().Cast<ManagementObject>()
                       select x.GetPropertyValue("Caption")).FirstOrDefault().ToString();
-            }
 
             if (SettingFile.Read("LauncherPosX") + "x" + SettingFile.Read("LauncherPosY") == "x")
             {
@@ -110,8 +96,7 @@ namespace GameLauncher.App
             ulong lpFreeBytesAvailable = 0;
             List<string> GPUs = new List<string>();
             string Win32_Processor = "";
-            if (!DetectLinux.NativeLinuxDetected())
-            {
+
                 GetPhysicallyInstalledSystemMemory(out memKb);
 
                 ManagementObjectSearcher searcher = new ManagementObjectSearcher("SELECT Name FROM Win32_VideoController");
@@ -128,7 +113,7 @@ namespace GameLauncher.App
                                    select x.GetPropertyValue("Name")).FirstOrDefault().ToString();
 
                 Kernel32.GetDiskFreeSpaceEx(SettingFile.Read("InstallationDirectory"), out lpFreeBytesAvailable, out ulong lpTotalNumberOfBytes, out ulong lpTotalNumberOfFreeBytes);
-            }
+            
 
             var Win32_VideoController = string.Join(" | ", GPUs);
 
@@ -146,17 +131,6 @@ namespace GameLauncher.App
                 new ListType{ Name = "", Value = "" },
             };
 
-			if (DetectLinux.NativeLinuxDetected()) {
-				var embedded = Directory.Exists("wine");
-				settings.Add(new ListType { Name = "Embedded Wine", Value = embedded.ToString() });
-				if (!embedded) {
-					settings.Add(new ListType { Name = "Wine version", Value = WineManager.GetWineVersion() });
-				}
-				settings.Add(new ListType { Name = "", Value = "" });
-			}
-
-            if (!DetectLinux.NativeLinuxDetected())
-            {
                 settings.AddRange(new[] {
                     new ListType{ Name = "Antivirus", Value = Antivirus },
                     new ListType{ Name = "Firewall", Value = Firewall },
@@ -168,7 +142,7 @@ namespace GameLauncher.App
                     new ListType{ Name = "Disk Space Left", Value = FormatFileSize(lpFreeBytesAvailable) },
                     new ListType{ Name = "", Value = ""}
                 });
-            }
+
             settings.AddRange(new[] {
                 new ListType{ Name = "Operating System", Value = OS},
                 new ListType{ Name = "Environment Version", Value = Environment.OSVersion.Version.ToString() },

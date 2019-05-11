@@ -14,8 +14,6 @@ namespace GameLauncher
         [STAThread]
         internal static void Main()
         {
-            var linux = DetectLinux.NativeLinuxDetected();
-
             Directory.SetCurrentDirectory(Path.GetDirectoryName(Application.ExecutablePath) ?? throw new InvalidOperationException());
 
             if (Self.isTempFolder(Directory.GetCurrentDirectory()))
@@ -53,14 +51,9 @@ namespace GameLauncher
                 File.WriteAllBytes("LZMA.dll", ExtractResource.AsByte("GameLauncher.LZMA.LZMA.dll"));
             }
 
-            if (!linux && !File.Exists("discord-rpc.dll"))
+            if (!File.Exists("discord-rpc.dll"))
             {
                 File.WriteAllBytes("discord-rpc.dll", ExtractResource.AsByte("GameLauncher.Discord.discord-rpc.dll"));
-            }
-
-            if (linux && !File.Exists("libdiscord-rpc.so"))
-            {
-                File.WriteAllBytes("libdiscord-rpc.so", ExtractResource.AsByte("GameLauncher.Discord.libdiscord-rpc.so"));
             }
 
 			if (File.Exists("GL_Update.exe")) {

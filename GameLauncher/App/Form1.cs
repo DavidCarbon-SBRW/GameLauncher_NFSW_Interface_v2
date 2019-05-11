@@ -24,6 +24,12 @@ using System.ComponentModel;
 using System.Linq;
 using System.Text.RegularExpressions;
 
+using Security;
+using System.IO.Compression;
+using Microsoft.WindowsAPICodePack.Dialogs;
+using System.Threading.Tasks;
+using System.Collections.Concurrent;
+
 namespace GameLauncher
 {
     public sealed partial class MainScreen : Form
@@ -50,7 +56,7 @@ namespace GameLauncher
         private Thread _nfswstarted;
         private string _passwordHash;
         private string _slresponse = "";
-        private readonly string _discordrpccode = "427355155537723393";
+        private readonly string _discordrpccode = "576154452348633108";
 
         private int _errorcode;
 
@@ -75,15 +81,16 @@ namespace GameLauncher
         private readonly Pen _colorIssues = new Pen(Color.FromArgb(255, 145, 0));
 
         private readonly IniFile _settingFile = new IniFile("Settings.ini");
-        private readonly string _userSettings = WineManager.GetUserSettingsPath();
+        private readonly string _userSettings = UserSettingsManager.GetUserSettingsPath();
         private string _presenceImageKey;
         private string _NFSW_Installation_Source;
         private string _blacklistedXML;
         private string _realServername;
-
+        private string _OS;
 
         private static Random random = new Random();
-		public static string RandomString(int length) {
+
+        public static string RandomString(int length) {
 			const string chars = "qwertyuiopasdfghjklzxcvbnm1234567890_";
 			return new string(Enumerable.Repeat(chars, length)
 			  .Select(s => s[random.Next(s.Length)]).ToArray());
@@ -186,10 +193,7 @@ namespace GameLauncher
             }
 
             SetStyle(ControlStyles.SupportsTransparentBackColor, true);
-            if (!DetectLinux.NativeLinuxDetected())
-            {
-                ApplyEmbeddedFonts();
-            }
+            ApplyEmbeddedFonts();
 
             if (_settingFile.KeyExists("LauncherPosX") || _settingFile.KeyExists("LauncherPosY"))
             {
@@ -345,7 +349,7 @@ namespace GameLauncher
                 _formGraphics.Dispose();
             }
 
-            if (Self.CheckForInternetConnection() == false && !DetectLinux.WineDetected())
+            if (Self.CheckForInternetConnection() == false)
             {
                 MessageBox.Show(null, Language.getLangString("ERROR_NOINTERNETCONNECTION", _uiLanguage), "GameLauncher", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
@@ -846,10 +850,13 @@ namespace GameLauncher
                 _useLegacy = false;
             }
 
+            _OS = (string)Registry.LocalMachine.OpenSubKey("Software\\Microsoft\\Windows NT\\CurrentVersion").GetValue("productName");
+
             var handlers = new DiscordRpc.EventHandlers();
             DiscordRpc.Initialize(_discordrpccode, ref handlers, true, "");
-            _presence.state = "In-Launcher: " + Application.ProductVersion;
-            _presence.largeImageText = "SBRW";
+            _presence.state = _OS;
+            _presence.details = "In-Launcher: " + Application.ProductVersion;
+            _presence.largeImageText = "Soapbox Race World";
             _presence.largeImageKey = "nfsw";
             _presence.instance = true;
             DiscordRpc.UpdatePresence(_presence);
@@ -929,18 +936,7 @@ namespace GameLauncher
             ServerProxy.Instance.Stop();
 
             //Dirty way to terminate application (sometimes Application.Exit() didn't really quitted, was still running in background)
-            if (DetectLinux.WineDetected())
-            {
-                Close();
-                _downloader.Stop();
-                Application.Exit();
-                Application.ExitThread();
-                Environment.Exit(Environment.ExitCode);
-            }
-            else
-            {
-                Process.GetProcessById(Process.GetCurrentProcess().Id).Kill();
-            }
+            Process.GetProcessById(Process.GetCurrentProcess().Id).Kill();
         }
 
         private void addServer_Click(object sender, EventArgs e)
@@ -1506,8 +1502,6 @@ namespace GameLauncher
 
                     onlineCount.Text += ". ";
 
-                    if (DetectLinux.WineDetected() == false)
-                    {
                         var pingSender = new Ping();
                         pingSender.SendAsync(stringToUri.Host, 1000, new byte[1], new PingOptions(64, true), new AutoResetEvent(false));
                         pingSender.PingCompleted += (sender3, e3) =>
@@ -1566,19 +1560,6 @@ namespace GameLauncher
                                 }
                             }
                         };
-                    }
-                    else
-                    {
-                        if (_isIndex)
-                        {
-                            _formGraphics = CreateGraphics();
-                            _formGraphics.DrawRectangle(_colorIssues, new Rectangle(new Point(30, 125), new Size(372, 274)));
-                            _formGraphics.DrawRectangle(_colorIssues, new Rectangle(new Point(29, 124), new Size(374, 276)));
-                            _formGraphics.Dispose();
-                        }
-
-                        onlineCount.Text += Language.getLangString("MAIN_PINGDISABLED", _uiLanguage);
-                    }
                 }
             };
         }
@@ -2346,34 +2327,8 @@ namespace GameLauncher
 			var args = "SBRW " + serverIp + " " + loginToken + " " + userId + " -advancedLaunch";
             var psi = new ProcessStartInfo();
             psi.UseShellExecute = false;
-            if (!DetectLinux.NativeLinuxDetected())
-            {
-                psi.FileName = oldfilename;
-                psi.Arguments = args;
-            }
-            else
-            {
-                psi.EnvironmentVariables.Add("WINEDEBUG", "-d3d_shader,-d3d");
-                psi.EnvironmentVariables.Add("WINEPREFIX", WineManager.GetWinePrefix());
-                var wine = WineManager.GetWineDirectory();
-                Console.WriteLine(wine);
-                if (Directory.Exists(wine))
-                {
-                    Console.WriteLine("Embedded wine found");
-                    psi.EnvironmentVariables.Add("WINEVERPATH", wine);
-                    psi.EnvironmentVariables.Add("WINESERVER", wine + "/bin/wineserver");
-                    psi.EnvironmentVariables.Add("WINELOADER", wine + "/bin/wine");
-                    psi.EnvironmentVariables.Add("WINEDLLPATH", wine + "/lib/wine/fakedlls");
-                    psi.EnvironmentVariables.Add("LD_LIBRARY_PATH", wine + "/lib");
-                    psi.FileName = wine + "/bin/wine";
-                }
-                else
-                {
-                    psi.FileName = "wine";
-                }
-                psi.Arguments = "explorer /desktop=\"NFSW[" + userId + "]" + serverIp + ",1600x900\" " + oldfilename + " " + args;
-                Console.WriteLine(psi.Arguments);
-            }
+            psi.FileName = oldfilename;
+            psi.Arguments = args;
 
             var nfswProcess = Process.Start(psi);
             if (nfswProcess != null)
@@ -2485,7 +2440,7 @@ namespace GameLauncher
                     {
                         playProgressText.Text = Language.getLangString("MAIN_BUILTINSERVERINIT", _uiLanguage).ToUpper();
                     }
-                    else if (!DetectLinux.NativeLinuxDetected())
+                    else
                     {
                         var secondsToCloseLauncher = 5;
 
@@ -2806,35 +2761,6 @@ namespace GameLauncher
             TaskbarProgress.SetState(Handle, TaskbarProgress.TaskbarStates.Normal);
         }
 
-        private void WineDownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
-        {
-            BeginInvoke((MethodInvoker)delegate
-            {
-                OnDownloadProgress(e.TotalBytesToReceive, e.BytesReceived, e.TotalBytesToReceive + 1, "wine.tar.gz", 1);
-            });
-        }
-
-        private void WineDownloadCompleted(object sender, AsyncCompletedEventArgs e)
-        {
-            BeginInvoke((MethodInvoker)delegate
-            {
-                if (File.Exists("wine.tar.gz") && !Directory.Exists("wine"))
-                {
-                    var thread = new Thread(() =>
-                    {
-                        Directory.CreateDirectory("wine");
-                        playProgressText.Text = "EXTRACTING WINE";
-                        Process.Start("tar", "xf wine.tar.gz -C wine")?.WaitForExit();
-                        EnablePlayButton();
-                    })
-                    { IsBackground = true };
-
-                    thread.Start();
-                    return;
-                }
-            });
-        }
-
         private void OnDownloadFinished()
         {
             try
@@ -2844,18 +2770,6 @@ namespace GameLauncher
             catch
             {
                 // ignored
-            }
-
-            if (DetectLinux.MonoDetected())
-            {
-                if (WineManager.NeedEmbeddedWine() && !File.Exists("wine.tar.gz") && !Directory.Exists("wine"))
-                {
-                    var wineDownload = new WebClientWithTimeout();
-
-                    wineDownload.DownloadProgressChanged += WineDownloadProgressChanged;
-                    wineDownload.DownloadFileCompleted += WineDownloadCompleted;
-                    wineDownload.DownloadFileAsync(new Uri("http://launcher.soapboxrace.world/linux/wine.tar.gz"), "wine.tar.gz");
-                }
             }
 
             EnablePlayButton();

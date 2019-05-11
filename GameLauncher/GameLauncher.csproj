@@ -146,8 +146,8 @@
     <Compile Include="App\AddServer.Designer.cs">
       <DependentUpon>AddServer.cs</DependentUpon>
     </Compile>
+    <Compile Include="App\Classes\UserSettingsManager.cs" />
     <Compile Include="App\Classes\Delay.cs" />
-    <Compile Include="App\Classes\DetectLinux.cs" />
     <Compile Include="App\Classes\Downloader\Downloader.cs" />
     <Compile Include="App\Classes\Downloader\DownloaderCommand.cs" />
     <Compile Include="App\Classes\Downloader\DownloaderException.cs" />
@@ -225,6 +225,7 @@
     </EmbeddedResource>
     <EmbeddedResource Include="App\Form1.resx">
       <DependentUpon>Form1.cs</DependentUpon>
+      <SubType>Designer</SubType>
     </EmbeddedResource>
     <EmbeddedResource Include="Properties\Resources.resx">
       <Generator>ResXFileCodeGenerator</Generator>
@@ -259,7 +260,6 @@
     <EmbeddedResource Include="SoapBoxModules\udpcrypt2.soapbox.module" />
     <EmbeddedResource Include="SoapBoxModules\xmppsubject.soapbox.module" />
     <EmbeddedResource Include="SoapBoxModules\BootFlow.gfx" />
-    <Compile Include="App\Classes\WineManager.cs" />
     <EmbeddedResource Include="Discord\libdiscord-rpc.so" />
     <EmbeddedResource Include="SoapBoxModules\global.ini" />
   </ItemGroup>
@@ -310,6 +310,9 @@
   </ItemGroup>
   <ItemGroup>
     <Service Include="{508349B6-6B84-4DF5-91F0-309BEEBAD82D}" />
+  </ItemGroup>
+  <ItemGroup>
+    <WCFMetadata Include="Connected Services\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
